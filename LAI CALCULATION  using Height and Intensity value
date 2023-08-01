@@ -1,0 +1,65 @@
+## LAI CALCULATION Using Intensity value  ##
+
+
+import numpy as np
+import laspy
+
+# Load LIDAR point cloud data using laspy
+point_cloud = laspy.read('/content/drive/MyDrive/423500_2933250_denoised_st1_i6_default_heig_classi_st1.las')
+
+# Extract relevant attributes from the point cloud
+heights = point_cloud.z
+intensity = point_cloud.intensity
+
+# Filter point cloud based on intensity or other attributes if needed
+filtered_points = point_cloud.points  # Placeholder for filtering step
+
+threshold = 1.0
+
+# Compute canopy cover
+vegetation_points = np.sum(filtered_points.intensity > threshold)  # Compare intensity with the threshold
+total_points = len(filtered_points)
+canopy_cover = vegetation_points / total_points
+
+
+# Compute LAI using Beer-Lambert law
+extinction_coefficient = 0.5  # Set an appropriate value
+LAI = -np.log(1 - canopy_cover) / extinction_coefficient
+
+# Print the computed LAI value
+print("LAI:", LAI)
+
+
+
+
+## LAI CALCULATION Using Height value ##
+
+
+import numpy as np
+import laspy
+
+# Load LIDAR point cloud data using laspy
+point_cloud = laspy.read('/content/drive/MyDrive/423500_2933250_denoised_st1_i6_default_heig_classi_st1.las')
+
+# Extract relevant attributes from the point cloud
+heights = point_cloud.z
+filtered_points = point_cloud.points  # Placeholder for filtering step
+
+height_threshold = 90
+
+# Filter point cloud based on height or other attributes if needed
+filtered_points = filtered_points[heights > height_threshold]  # Set an appropriate height threshold
+
+# Compute canopy cover
+vegetation_points = len(filtered_points)
+total_points = len(point_cloud.points)
+canopy_cover = vegetation_points / total_points
+
+# Set the extinction coefficient based on your study area or vegetation type
+extinction_coefficient = 0.5
+
+# Compute LAI using Beer-Lambert law
+LAI = -np.log(1 - canopy_cover) / (extinction_coefficient)
+
+# Print the computed LAI value
+print("LAI:", LAI)
