@@ -1,0 +1,85 @@
+import numpy as np
+import laspy
+import rasterio
+import math
+import matplotlib.pyplot as plt
+
+def las_to_intensity_tiff(las_file, tiff_file, cell_size=0.1):
+    # Read the LAS file
+    las = laspy.read(las_file)
+
+    # Extract intensity values from the point cloud
+    intensity = las.intensity
+
+    # Get the point cloud coordinates
+    x = las.x
+    y = las.y
+
+    # Calculate the raster dimensions based on point cloud extent
+    min_x, max_x = np.min(x), np.max(x)
+    min_y, max_y = np.min(y), np.max(y)
+    rows = math.ceil((max_y - min_y) / cell_size)
+    cols = math.ceil((max_x - min_x) / cell_size)
+
+    # Create the intensity raster
+    intensity_raster = np.zeros((rows, cols), dtype=np.uint16)
+
+    # Calculate the row and column indices for each point in the raster
+    row_indices = np.floor((y - min_y) / cell_size).astype(int)
+    col_indices = np.floor((x - min_x) / cell_size).astype(int)
+
+    # Assign the intensity values to the corresponding raster cells
+    for i in range(len(intensity)):
+        intensity_raster[row_indices[i], col_indices[i]] = intensity[i]
+
+    # Write the intensity raster to a GeoTIFF file
+    with rasterio.open(tiff_file, 'w', driver='GTiff', height=rows, width=cols, count=1, dtype=intensity_raster.dtype,
+                       crs='EPSG:4326', transform=rasterio.transform.from_origin(min_x, max_y, cell_size, cell_size)) as dst:
+        dst.write(intensity_raster, 1)
+
+    return intensity_raster
+
+# Example usage
+las_file = "/content/drive/MyDrive/423500_2933250_denoised_st1_i6_default_heig_classi_st1.las"
+tiff_file = "intensity_raster.tif"
+intensity_raster = las_to_intensity_tiff(las_file, tiff_file)
+
+# Display the intensity raster as an image
+plt.imshow(intensity_raster, cmap='viridis')
+plt.colorbar()
+plt.title('Intensity Raster')
+plt.xlabel('Column Index')
+plt.ylabel('Row Index')
+plt.show()
+
+# Save the displayed image as a PNG file
+plt.savefig("intensity_raster_image.png")
+
+
+def calculate_lai_from_intensity_tiff(intensity_tiff_file, extinction_coefficient=0.5, intensity_threshold=30):
+    # Read the intensity raster from the TIFF file
+    with rasterio.open(intensity_tiff_file) as src:
+        intensity_raster = src.read(1)
+
+    # Calculate the sum of canopy point intensity values above the threshold
+    canopy_intensity = np.sum(intensity_raster[intensity_raster > intensity_threshold])
+
+    # Calculate the sum of total point intensity values
+    total_intensity = np.sum(intensity_raster)
+
+    # Calculate the Intensity Ratio Index (IRI)
+    iri = canopy_intensity / total_intensity
+    print(f"Intensity Ratio Index (IRI): {iri}")
+    # Calculate the Leaf Area Index (LAI) using the IRI and the extinction coefficient
+    gap_fraction = 1 - iri
+    lai = -np.log(gap_fraction) / extinction_coefficient
+
+    return lai
+
+# Example usage
+intensity_tiff_file = "intensity_raster.tif"
+lai = calculate_lai_from_intensity_tiff(intensity_tiff_file)
+
+print(f"Leaf Area Index (LAI):")
+print(lai)
+
