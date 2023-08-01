@@ -1,0 +1,59 @@
+import rasterio
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Open DSM and DTM using Rasterio
+with rasterio.open('/content/drive/MyDrive/vegetation_ground_DSM.tif') as src_dsm, rasterio.open('/content/drive/MyDrive/vegetation_ground_DTM.tif') as src_dtm:
+    # Read DSM and DTM as numpy arrays
+    dsm = src_dsm.read(1)
+    dtm = src_dtm.read(1)
+
+    # Calculate CHM
+    chm = dsm - dtm
+    print(chm)
+    # Set negative CHM values to zero
+    chm[chm < 0] = 0
+
+    # Write CHM to a new raster file
+    chm_profile = src_dsm.profile  # Use DSM's profile as a template
+    chm_profile.update(dtype=rasterio.float32, count=1)  # Update data type and band count
+    with rasterio.open('outputfile_chm.tif', 'w', **chm_profile) as dst_chm:
+        dst_chm.write(chm, 1)
+
+with rasterio.open('outputfile_chm.tif') as src_chm:
+    chm = src_chm.read(1)
+    plt.imshow(chm, cmap='viridis')
+    plt.colorbar()
+    plt.show()
+
+
+# Calculate LPI
+
+threshold = 0.5
+
+with rasterio.open('/content/drive/MyDrive/CANOPY_Height_Model.tif') as src_chm:
+    chm = src_chm.read(1)
+
+    ground_pixels = (chm <= threshold).sum()
+    total_pixels = chm.size
+    lpi = ground_pixels / total_pixels
+
+print(f"Laser Penetration Index (LPI): {lpi}")
+
+# Calculate ACI  #(aci = 1 - lpi)
+with rasterio.open('/content/drive/MyDrive/CANOPY_Height_Model.tif') as src_chm:
+    chm = src_chm.read(1)
+
+    canopy_pixels = (chm > threshold).sum()
+    total_pixels = chm.size
+    aci = canopy_pixels / total_pixels
+
+print(f"All Echo Cover Index (ACI): {aci}")
+
+# Calculate LAI
+k = 0.5   # Example extinction coefficient
+
+gap_fraction = 1 - aci
+lai = -math.log(gap_fraction) / k
+
+print(f"Leaf Area Index (LAI): {lai}")
