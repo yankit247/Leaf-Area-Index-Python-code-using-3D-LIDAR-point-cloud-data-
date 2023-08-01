@@ -1,0 +1,53 @@
+pip install laspy
+from google.colab import drive
+drive.mount('/content/drive')
+pip install rasterio
+
+import numpy as np
+import laspy
+import math
+
+def calculate_lpi(lidar_file):
+    # Read the LiDAR data
+    lidar = laspy.read(lidar_file)
+
+    # Classify ground and non-ground points
+    ground_points = lidar.points[lidar.classification == 2]
+    non_ground_points = lidar.points[lidar.classification != 2]
+
+    # Calculate the number of ground returns per unit area
+    mG = len(ground_points)
+
+    # Calculate the number of vegetation returns per unit area
+    mV = len(non_ground_points)
+
+    # Calculate LPI
+    lpi = mG / (mG + mV)
+
+    return lpi
+
+# Example usage
+lpi = calculate_lpi('/content/drive/MyDrive/423700_2933300.las')
+print(f'Laser Penetration Index: {lpi}')
+
+# Now calculate ACI and LAI using the returned value from calculate_lpi
+
+# Read the LiDAR data again to access the points
+lidar = laspy.read('/content/drive/MyDrive/423700_2933300.las')
+
+# Total number of returns (ground + non-ground)
+total_returns = len(lidar.points)
+
+# Number of non-ground returns (vegetation returns)
+non_ground_points = lidar.points[lidar.classification != 2]
+non_ground_returns = len(non_ground_points)
+
+aci = non_ground_returns / total_returns  # ACI calculation
+print(f'All echo cover index: {aci}')
+
+k = 0.5   # Example extinction coefficient
+
+gap_fraction = 1 - aci
+lai = -math.log(gap_fraction) / k
+
+print(f"Leaf Area Index (LAI): {lai}")
